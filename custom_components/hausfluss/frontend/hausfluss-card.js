@@ -1,5 +1,5 @@
-/* Hausfluss – Modul 3 Energiefluss · Version 0.0.1 */
-const VERSION = '0.0.1';
+/* Hausfluss – Modul 3 Energiefluss · Version 0.0.2 */
+const VERSION = '0.0.2';
 const POS = {
   top_1: [2, 1, 'in', '#facc15'], top_2: [3, 1, 'in', '#fbbf24'],
   left_1: [1, 2, 'out', '#f97316'], left_2: [1, 3, 'out', '#38bdf8'], left_3: [1, 4, 'out', '#a78bfa'],
@@ -13,7 +13,7 @@ const img = (v) => /^(\/|https?:)/.test(v) ? `<img src="${esc(v)}" alt="">` : /^
 
 const CSS = `
 :host{display:block}
-ha-card{background:#162033;color:#e8eef8;border:1px solid #26344d;border-radius:20px;padding:16px;font-family:inherit}
+ha-card{display:block;background:#162033;color:#e8eef8;border:1px solid #26344d;border-radius:20px;padding:16px;font-family:inherit}
 .head{display:flex;align-items:center;gap:10px;margin:0 2px 14px;font-size:17px;font-weight:700}
 .head i{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#2dd4bf,#0f766e);display:grid;place-items:center;font-style:normal}
 .board{position:relative}
@@ -51,7 +51,7 @@ class HausflussCard extends HTMLElement {
       return `<div class="node${n.position === 'hub' ? ' hub on' : ''}" data-p="${n.position}" style="--c:${col}">${SIDES.map((s) => `<div class="s ${s[0]}" data-e="${esc(n[s])}" data-s="${s}"></div>`).join('')}<div class="img">${img(n.image || (n.position === 'hub' ? '🏠' : '⚡'))}</div></div>`;
     };
     const cells = ns.map((n) => { const p = POS[n.position]; const b = n.position === 'bottom'; return `<div class="cell${b ? ' span2' : ''}" style="grid-column:${b ? '2/4' : p[0]};grid-row:${p[1]}">${node(n)}</div>`; }).join('');
-    this.shadowRoot.innerHTML = `<style>${CSS}</style><ha-card><div class="head"><i>⚡</i>${esc(c.title || 'Modul 3 – Energiefluss')}</div><div class="board"><svg></svg><div class="grid">${cells}<div class="cell span2" style="grid-row:3">${node(hub)}</div></div></div></ha-card>`;
+    this.shadowRoot.innerHTML = `<style>${CSS}</style><ha-card>${c.hide_header ? '' : `<div class="head"><i>⚡</i>${esc(c.title || 'Modul 3 – Energiefluss')}</div>`}<div class="board"><svg></svg><div class="grid">${cells}<div class="cell span2" style="grid-row:3">${node(hub)}</div></div></div></ha-card>`;
     this.shadowRoot.querySelectorAll('.s').forEach((el) => (el.onclick = () => el.dataset.e && this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: el.dataset.e }, bubbles: true, composed: true }))));
     this._sig = null; this._ro && this._ro.disconnect();
     this._ro = new ResizeObserver(() => this._lines()); this._ro.observe(this.shadowRoot.querySelector('.board'));
@@ -133,8 +133,76 @@ class HausflussEditor extends HTMLElement {
   }
 }
 
-customElements.define('hausfluss-card', HausflussCard);
-customElements.define('hausfluss-card-editor', HausflussEditor);
+const DEFAULT_CFG = { title: 'Modul 3 – Energiefluss', hub: { name: 'Haus' }, nodes: [] };
+const PCSS = `
+:host{display:block;min-height:100%;background:var(--primary-background-color)}
+.bar{display:flex;align-items:center;gap:8px;height:56px;padding:0 12px;background:var(--app-header-background-color,#03a9f4);color:var(--app-header-text-color,#fff);position:sticky;top:0;z-index:2}
+.t{flex:1;font-size:20px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+button{background:transparent;border:1px solid currentColor;color:inherit;border-radius:999px;padding:7px 16px;font:500 14px inherit;font-family:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.main{display:flex;gap:16px;padding:16px;align-items:flex-start;max-width:1400px;margin:0 auto;box-sizing:border-box}
+.cw{flex:1;min-width:0;max-width:820px;margin:0 auto}.ed{width:380px;flex:none}
+.hint{margin:0 0 12px;padding:12px 16px;border-radius:12px;background:var(--card-background-color);color:var(--secondary-text-color);font-size:14px}
+.msg{font-size:13px;opacity:.9}
+@media(max-width:900px){.main{flex-direction:column}.ed{width:100%}}`;
+
+class HausflussPanel extends HTMLElement {
+  constructor() { super(); this.attachShadow({ mode: 'open' }); }
+  set hass(h) {
+    this._h = h;
+    if (this._ed) this._ed.hass = h;
+    if (this._card) this._card.hass = h;
+    if (this._menu) this._menu.hass = h;
+    if (!this._started) { this._started = true; this._start(); }
+  }
+  set narrow(v) { this._narrow = v; if (this._menu) this._menu.narrow = v; }
+  set panel(_) {}
+
+  async _start() {
+    try { // Editor-Bausteine von Home Assistant nachladen (ha-form, Entitätsauswahl)
+      const ch = await window.loadCardHelpers?.();
+      const c = await ch?.createCardElement({ type: 'entities', entities: [] });
+      await c?.constructor?.getConfigElement?.();
+    } catch (e) { /* optional */ }
+    try { this._cfg = (await this._h.callWS({ type: 'hausfluss/get_config' })).config || DEFAULT_CFG; }
+    catch (e) { this._cfg = DEFAULT_CFG; }
+    this._draw();
+  }
+
+  _draw() {
+    const admin = !!this._h.user?.is_admin, r = this.shadowRoot;
+    r.innerHTML = `<style>${PCSS}</style><div class="bar"><ha-menu-button></ha-menu-button><div class="t"></div><span class="msg" id="m"></span>${admin ? '<button id="b">Anpassen</button>' : ''}</div><div class="main"><div class="cw"><div class="hint" id="hint" hidden>Noch keine Kachel angelegt. Tippe oben auf „Anpassen“, schalte Kacheln ein und wähle ihre Entitäten.</div></div><div class="ed" id="ed" hidden></div></div>`;
+    this._menu = r.querySelector('ha-menu-button'); this._menu.hass = this._h; this._menu.narrow = this._narrow;
+    this._card = document.createElement('hausfluss-card'); r.querySelector('.cw').appendChild(this._card);
+    this._apply();
+    if (admin) {
+      const ed = (this._ed = document.createElement('hausfluss-card-editor'));
+      ed.hass = this._h; ed.setConfig(this._cfg);
+      ed.addEventListener('config-changed', (e) => this._save(e.detail.config));
+      r.getElementById('ed').appendChild(ed);
+      r.getElementById('b').onclick = () => { const e = r.getElementById('ed'); e.hidden = !e.hidden; r.getElementById('b').textContent = e.hidden ? 'Anpassen' : 'Fertig'; };
+    }
+  }
+
+  _apply() {
+    const r = this.shadowRoot, c = this._cfg;
+    r.querySelector('.t').textContent = c.title || DEFAULT_CFG.title;
+    this._card.setConfig({ ...c, hide_header: true }); this._card.hass = this._h;
+    r.getElementById('hint').hidden = !(this._h.user?.is_admin && !(c.nodes || []).some((n) => n.enabled !== false));
+  }
+
+  _save(cfg) {
+    this._cfg = cfg; this._apply(); clearTimeout(this._t);
+    this._t = setTimeout(async () => {
+      const m = this.shadowRoot.getElementById('m');
+      try { await this._h.callWS({ type: 'hausfluss/set_config', config: cfg }); m.textContent = 'Gespeichert'; }
+      catch (e) { m.textContent = 'Speichern fehlgeschlagen'; }
+      setTimeout(() => (m.textContent = ''), 2500);
+    }, 600);
+  }
+}
+
+[['hausfluss-card', HausflussCard], ['hausfluss-card-editor', HausflussEditor], ['hausfluss-panel', HausflussPanel]].forEach(([n, c]) => { if (!customElements.get(n)) customElements.define(n, c); });
 window.customCards = window.customCards || [];
 window.customCards.push({ type: 'hausfluss-card', name: 'Hausfluss – Modul 3 Energiefluss', description: 'Energiefluss mit wählbaren Kacheln und je vier Entitäten pro Kachel', preview: true });
 console.info(`%c HAUSFLUSS %c v${VERSION} `, 'background:#2dd4bf;color:#0e1626;font-weight:700', 'background:#162033;color:#e8eef8');

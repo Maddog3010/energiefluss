@@ -3,11 +3,23 @@
     "step": {
       "user": {
         "title": "Hausfluss einrichten",
-        "description": "Die Karte „Hausfluss – Modul 3 Energiefluss“ wird automatisch in deinen Dashboards bereitgestellt. Danach: Karte hinzufügen → Hausfluss."
+        "description": "Es wird automatisch die Seite „Energiefluss“ in der Seitenleiste angelegt. Dort wählst du über „Anpassen“ Kacheln und Entitäten. Die Karte „Hausfluss“ steht außerdem in jedem Dashboard zur Verfügung."
       }
     },
     "abort": {
       "single_instance_allowed": "Hausfluss ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Seitenleiste",
+        "data": {
+          "sidebar_title": "Titel in der Seitenleiste",
+          "sidebar_icon": "Symbol",
+          "require_admin": "Nur für Administratoren sichtbar"
+        }
+      }
     }
   }
 }

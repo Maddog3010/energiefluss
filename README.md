@@ -1,4 +1,4 @@
-# Hausfluss – Modul 3 Energiefluss (v0.0.1)
+# Hausfluss – Modul 3 Energiefluss (v0.0.2)
 
 Lovelace-Karte für Home Assistant: ein Haus-Knoten in der Mitte, bis zu 9 Kacheln drumherum.
 Jede Kachel hat ein Bild in der Mitte und je eine Entität oben, unten, links und rechts.
@@ -12,15 +12,25 @@ Jede Kachel hat ein Bild in der Mitte und je eine Entität oben, unten, links un
 
 Die Bilder zeigen die Vorschau mit Beispieldaten.
 
+## Seitenleiste (neu in 0.0.2)
+Mit der Integration entsteht automatisch eine Seite **Energiefluss** links in der Seitenleiste.
+
+![Seite in der Seitenleiste](images/seitenleiste.png)
+
+- Die Karte läuft dort im Vollbild.
+- Über **Anpassen** schaltest du Kacheln an oder ab und wählst Entitäten, Bilder und Farben. Das Ändern ist Administratoren vorbehalten.
+- Gespeichert wird zentral, alle Benutzer sehen dieselbe Seite.
+- Titel, Symbol und „nur für Administratoren“ stellst du unter *Einstellungen → Geräte & Dienste → Hausfluss → Konfigurieren* ein.
+- Die Karte steht zusätzlich weiter in jedem eigenen Dashboard zur Verfügung (siehe YAML-Beispiel).
+
 ## Installation (HACS, Kategorie Integration)
 1. HACS → ⋮ → *Benutzerdefinierte Repositories* → Repository-URL eintragen, Kategorie **Integration**.
 2. „Hausfluss“ installieren und Home Assistant neu starten.
-3. Einstellungen → Geräte & Dienste → **Integration hinzufügen** → *Hausfluss*. Ein Klick genügt.
-4. Dashboard bearbeiten → Karte hinzufügen → **Hausfluss**. Im Editor Kacheln an- oder abwählen und Entitäten wählen.
+3. Einstellungen → Geräte & Dienste → **Integration hinzufügen** → *Hausfluss*. Ein Klick genügt, die Seite **Energiefluss** erscheint danach in der Seitenleiste.
+4. Seite öffnen → **Anpassen** → Kacheln und Entitäten wählen.
 
-Die Karte wird von der Integration selbst ausgeliefert und geladen. Eine Dashboard-Ressource musst du nicht von Hand anlegen.
 Manuell: den Ordner `custom_components/hausfluss` nach `config/custom_components/` kopieren.
-Beim Veröffentlichen auf GitHub ein Release mit dem Tag `v0.0.1` anlegen und `DEIN-NAME` in der `manifest.json` ersetzen.
+Beim Veröffentlichen auf GitHub ein Release mit dem Tag `v0.0.2` anlegen und `DEIN-NAME` in der `manifest.json` ersetzen.
 
 ## YAML-Beispiel
 ```yaml

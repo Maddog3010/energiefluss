@@ -3,11 +3,23 @@
     "step": {
       "user": {
         "title": "Set up Hausfluss",
-        "description": "The Hausfluss energy flow card is provided automatically to your dashboards. Then: add card → Hausfluss."
+        "description": "A sidebar page \"Energiefluss\" is created automatically. Use \"Anpassen\" there to choose tiles and entities. The card is also available in every dashboard."
       }
     },
     "abort": {
       "single_instance_allowed": "Hausfluss is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sidebar",
+        "data": {
+          "sidebar_title": "Sidebar title",
+          "sidebar_icon": "Icon",
+          "require_admin": "Visible to administrators only"
+        }
+      }
     }
   }
 }
