@@ -6,9 +6,9 @@ Jede Kachel hat ein Bild in der Mitte und je eine Entität oben, unten, links un
 ## Vorschau
 ![Übersicht](images/uebersicht.png)
 
-| Editor | Kacheln abgewählt | Mobil |
-|---|---|---|
-| <img src="images/editor.png" width="280"> | <img src="images/kacheln-abgewaehlt.png" width="280"> | <img src="images/mobil.png" width="200"> |
+| Kacheln abgewählt | Mobil |
+|---|---|
+| <img src="images/kacheln-abgewaehlt.png" width="320"> | <img src="images/mobil.png" width="220"> |
 
 Die Bilder zeigen die Vorschau mit Beispieldaten.
 
@@ -17,11 +17,13 @@ Mit der Integration entsteht automatisch eine Seite **Energiefluss** links in de
 
 ![Seite in der Seitenleiste](images/seitenleiste.png)
 
-- Die Karte läuft dort im Vollbild.
-- Über **Anpassen** schaltest du Kacheln an oder ab und wählst Entitäten, Bilder und Farben. Das Ändern ist Administratoren vorbehalten.
+- Die Karte läuft dort im Vollbild, mit Kopfbereich („Hausverbrauch jetzt“, Solar, Hausverbrauch heute und eigene Chips).
+- Über **Anpassen** öffnet sich die Einrichtung der Kacheln: Haken setzen oder entfernen blendet eine Kachel ein oder aus, den Namen antippen zum Bearbeiten, oder die Kachel direkt auf der Karte antippen. Pro Kachel stellst du Name, Bild, Farbe, Richtung und die Entitäten für oben, unten, links und rechts ein. Entitäten findest du über die Eingabe mit Vorschlägen. Das Ändern ist Administratoren vorbehalten.
 - Gespeichert wird zentral, alle Benutzer sehen dieselbe Seite.
 - Titel, Symbol und „nur für Administratoren“ stellst du unter *Einstellungen → Geräte & Dienste → Hausfluss → Konfigurieren* ein.
-- Die Karte steht zusätzlich weiter in jedem eigenen Dashboard zur Verfügung (siehe YAML-Beispiel).
+- Die Karte steht zusätzlich weiter in jedem eigenen Dashboard zur Verfügung (siehe YAML-Beispiel). Dort öffnet der Karteneditor dieselbe Einrichtung.
+
+![Einrichtung der Kacheln](images/editor.png)
 
 ## Installation (HACS, Kategorie Integration)
 1. HACS → ⋮ → *Benutzerdefinierte Repositories* → Repository-URL eintragen, Kategorie **Integration**.
@@ -36,11 +38,13 @@ Beim Veröffentlichen auf GitHub ein Release mit dem Tag `v0.0.2` anlegen und `D
 ```yaml
 type: custom:hausfluss-card
 title: Modul 3 – Energiefluss
+show_hero: true        # false blendet den Kopfbereich aus
 hub:
   name: Haus
   image: 🏠
-  top: sensor.haus_energie_heute
-  bottom: sensor.haus_leistung
+  top: sensor.haus_energie_heute   # Chip „Hausverbrauch heute“
+  bottom: sensor.haus_leistung     # große Zahl im Kopfbereich
+  chips: [sensor.akku_ladestand]   # weitere Chips (optional)
 nodes:
   - position: top_1        # top_1, top_2, left_1-3, right_1-3, bottom
     enabled: true          # false blendet die Kachel aus
