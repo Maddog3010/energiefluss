@@ -1,0 +1,5 @@
+"""Konstanten für Hausfluss."""
+DOMAIN = "hausfluss"
+URL_BASE = "/hausfluss_static"
+CARD_FILE = "hausfluss-card.js"
+VERSION = "0.0.1"

@@ -1,0 +1,12 @@
+{
+  "domain": "hausfluss",
+  "name": "Hausfluss – Modul 3 Energiefluss",
+  "version": "0.0.1",
+  "documentation": "https://github.com/DEIN-NAME/hausfluss",
+  "issue_tracker": "https://github.com/DEIN-NAME/hausfluss/issues",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["http", "frontend"],
+  "iot_class": "calculated",
+  "single_config_entry": true
+}
