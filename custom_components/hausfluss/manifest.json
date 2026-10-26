@@ -1,10 +1,12 @@
 {
   "domain": "hausfluss",
   "name": "Hausfluss – Modul 3 Energiefluss",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "documentation": "https://github.com/Maddog3010/hausfluss",
   "issue_tracker": "https://github.com/Maddog3010/hausfluss/issues",
-  "codeowners": [],
+  "codeowners": [
+    "@Maddog3010"
+  ],
   "config_flow": true,
   "dependencies": [
     "http",

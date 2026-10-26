@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.0.7
+- **Behoben: Die Integration wurde in 0.0.5 und 0.0.6 nicht geladen.** Die Datei `const.py` war durch einen Fehler beim Paketieren leer, dadurch scheiterte der Import beim Start. Funktionsumfang ist sonst wie in 0.0.6. Bitte 0.0.5 und 0.0.6 überspringen.
+
+## 0.0.6
+- Mobil: Unter 600 Pixel Breite wechselt die Karte in ein Handy-Layout (Haus oben, Kacheln in zwei Spalten, Sammellinie) mit deutlich größeren Schriften.
+- Die Karte passt sich beim Drehen oder Ändern der Fenstergröße automatisch an.
+- GitHub-Name „Maddog3010“ ist jetzt in `manifest.json` (Dokumentation, Fehlermeldungen, Codeowner) und in der README eingetragen.
+
 ## 0.0.5
 - Das Feld „Richtung“ ist jetzt die **Flussart**: verbraucht, liefert, beides mit einem Sensor (Vorzeichen, optional umkehrbar) oder beides mit zwei Sensoren (`power_to_node`, `power_to_house`).
 - Der Editor zeigt je nach Flussart nur die passenden Sensorfelder mit Hinweis.

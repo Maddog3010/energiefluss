@@ -1,4 +1,4 @@
-# Hausfluss – Modul 3 Energiefluss (v0.0.5)
+# Hausfluss – Modul 3 Energiefluss (v0.0.7)
 
 Lovelace-Karte für Home Assistant: ein Haus-Knoten in der Mitte, bis zu 9 Kacheln drumherum.
 Jede Kachel hat ein Bild in der Mitte und je eine Entität oben, unten, links und rechts.
@@ -8,11 +8,11 @@ Jede Kachel hat ein Bild in der Mitte und je eine Entität oben, unten, links un
 
 | Kacheln abgewählt | Mobil |
 |---|---|
-| <img src="images/kacheln-abgewaehlt.png" width="320"> | <img src="images/mobil.png" width="220"> |
+| <img src="images/kacheln-abgewaehlt.png" width="320"> | <img src="images/mobil.png" width="240"> |
 
-Die Bilder zeigen die Vorschau mit Beispieldaten.
+Die Bilder zeigen die Vorschau mit Beispieldaten. Auf dem Handy ordnet sich die Karte automatisch neu an (siehe „Mobil“).
 
-## Seitenleiste (neu in 0.0.2)
+## Seitenleiste
 Mit der Integration entsteht automatisch eine Seite **Energiefluss** links in der Seitenleiste.
 
 ![Seite in der Seitenleiste](images/seitenleiste.png)
@@ -39,14 +39,17 @@ Mit der Integration entsteht automatisch eine Seite **Energiefluss** links in de
 |---|---|
 | <img src="images/suche-entitaet.png" width="300"> | <img src="images/suche-bild.png" width="300"> |
 
+## Mobil
+Ist die Karte schmaler als 600 Pixel, wechselt sie automatisch in ein Handy-Layout: Das Haus steht oben, die Kacheln darunter in zwei Spalten, verbunden über eine Sammellinie. So bleiben alle Werte gut lesbar.
+
 ## Installation (HACS, Kategorie Integration)
-1. HACS → ⋮ → *Benutzerdefinierte Repositories* → Repository-URL eintragen, Kategorie **Integration**.
+1. HACS → ⋮ → *Benutzerdefinierte Repositories* → Repository-URL `https://github.com/Maddog3010/hausfluss` eintragen, Kategorie **Integration**.
 2. „Hausfluss“ installieren und Home Assistant neu starten.
 3. Einstellungen → Geräte & Dienste → **Integration hinzufügen** → *Hausfluss*. Ein Klick genügt, die Seite **Energiefluss** erscheint danach in der Seitenleiste.
 4. Seite öffnen → **Anpassen** → Kacheln und Entitäten wählen.
 
 Manuell: den Ordner `custom_components/hausfluss` nach `config/custom_components/` kopieren.
-Beim Veröffentlichen auf GitHub ein Release mit dem Tag `v0.0.5` anlegen und `DEIN-NAME` in der `manifest.json` ersetzen.
+Beim Veröffentlichen auf GitHub (`Maddog3010/hausfluss`) ein Release mit dem Tag `v0.0.7` anlegen.
 
 ## YAML-Beispiel
 ```yaml

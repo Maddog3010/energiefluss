@@ -1,5 +1,5 @@
-/* Hausfluss – Modul 3 Energiefluss · Version 0.0.5 */
-const VERSION = '0.0.5';
+/* Hausfluss – Modul 3 Energiefluss · Version 0.0.7 */
+const VERSION = '0.0.7';
 const POS = {
   top_1: [2, 1, 'in', '#facc15'], top_2: [3, 1, 'in', '#fbbf24'],
   left_1: [1, 2, 'out', '#f97316'], left_2: [1, 3, 'out', '#38bdf8'], left_3: [1, 4, 'out', '#a78bfa'],
@@ -72,6 +72,12 @@ svg.lines{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-eve
 .s.t{top:8%;left:50%;transform:translateX(-50%)}.s.b{bottom:8%;left:50%;transform:translateX(-50%)}
 .s.l{left:3%;top:50%;transform:translateY(-50%);width:28%}.s.r{right:3%;top:50%;transform:translateY(-50%);width:28%}
 .hub .s.t{font-size:10cqw}.hub .s.b{font-size:9cqw}
+.narrow .board{padding:14px}
+.narrow .grid{grid-template-columns:1fr 1fr;column-gap:36px;row-gap:14px}
+.narrow .span2{grid-column:1/-1}.narrow .span2 .node{width:calc(50% - 18px)}
+.narrow .s{font-size:9.6cqw}.narrow .s.l,.narrow .s.r{width:31%}.narrow .s i{font-size:.8em}
+.narrow .hub .s.t{font-size:11cqw}.narrow .hub .s.b{font-size:10cqw}
+.narrow .big{font-size:40px}
 @media (prefers-reduced-motion:reduce){.node{transition:none}}
 `;
 
@@ -83,7 +89,13 @@ class HausflussCard extends HTMLElement {
   setConfig(c) { if (!c) throw new Error('Konfiguration fehlt'); this._c = { nodes: [], ...c }; this._build(); }
   set hass(h) { this._h = h; this._upd(); }
   setEdit(on, sel) { this._edit = !!on; this._sel = sel || null; this._upd(); }
-  disconnectedCallback() { this._ro && this._ro.disconnect(); }
+  connectedCallback() {
+    this._measure(); if (this._c && !!this._built !== !!this._narrow) this._build();
+    this._hro = new ResizeObserver(() => { const b = this._narrow; this._measure(); if (this._c && b !== this._narrow) this._build(); });
+    this._hro.observe(this);
+  }
+  disconnectedCallback() { this._ro && this._ro.disconnect(); this._hro && this._hro.disconnect(); }
+  _measure() { const w = this.getBoundingClientRect().width; if (w) this._narrow = w < 600; }
 
   _build() {
     const c = this._c, hub = { ...c.hub, position: 'hub' };
@@ -93,11 +105,21 @@ class HausflussCard extends HTMLElement {
       const col = n.color || (POS[n.position] || [])[3] || '#2dd4bf';
       return `<div class="node${n.position === 'hub' ? ' hub on' : ''}" data-p="${n.position}" style="--c:${col}">${SIDES.map((s) => `<div class="s ${s[0]}" data-e="${esc(n[s])}"></div>`).join('')}<div class="img">${img(n.image || (n.position === 'hub' ? '🏠' : '⚡'))}</div></div>`;
     };
-    const cells = ns.map((n) => { const p = POS[n.position], b = n.position === 'bottom'; return `<div class="cell${b ? ' span2' : ''}" style="grid-column:${b ? '2/4' : p[0]};grid-row:${p[1]}">${node(n)}</div>`; }).join('');
+    this._measure(); this._built = !!this._narrow;
+    let cells, hubRow = 3;
+    if (this._narrow) {
+      const pick = (ks) => ks.map((k) => ns.find((n) => n.position === k)).filter(Boolean);
+      const L = pick(['top_1', 'left_1', 'left_2', 'left_3']), R = pick(['top_2', 'right_1', 'right_2', 'right_3']), bt = ns.find((n) => n.position === 'bottom');
+      const place = (list, col) => list.map((n, i) => `<div class="cell" style="grid-column:${col};grid-row:${i + 2}">${node(n)}</div>`).join('');
+      cells = place(L, 1) + place(R, 2) + (bt ? `<div class="cell span2" style="grid-row:${Math.max(L.length, R.length) + 2}">${node(bt)}</div>` : '');
+      hubRow = 1;
+    } else {
+      cells = ns.map((n) => { const p = POS[n.position], b = n.position === 'bottom'; return `<div class="cell${b ? ' span2' : ''}" style="grid-column:${b ? '2/4' : p[0]};grid-row:${p[1]}">${node(n)}</div>`; }).join('');
+    }
     const head = c.hide_header ? '' : `<div class="head"><i>⚡</i>${esc(c.title || 'Modul 3 – Energiefluss')}</div>`;
     const hi = c.hero_image, art = hi === 'none' || hi === false ? '' : `<div class="art">${hi && hi !== 'svg:hero' ? img(hi) : HERO_SVG}</div>`;
     const hero = c.show_hero === false ? '' : `<div class="hero">${art}<small id="hl">Hausverbrauch jetzt</small><div class="big"><b id="hv">–</b><span>W</span></div><div class="chips" id="hc"></div></div>`;
-    this.shadowRoot.innerHTML = `<style>${CSS}</style><ha-card><div class="wrap" id="w">${head}${hero}<div class="board"><svg class="lines"></svg><div class="grid">${cells}<div class="cell span2" style="grid-row:3">${node(hub)}</div></div></div></div></ha-card>`;
+    this.shadowRoot.innerHTML = `<style>${CSS}</style><ha-card><div class="wrap${this._narrow ? ' narrow' : ''}" id="w">${head}${hero}<div class="board"><svg class="lines"></svg><div class="grid">${cells}<div class="cell span2" style="grid-row:${hubRow}">${node(hub)}</div></div></div></div></ha-card>`;
     this.shadowRoot.querySelectorAll('.s').forEach((el) => (el.onclick = () => !this._edit && el.dataset.e && this.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: el.dataset.e }, bubbles: true, composed: true }))));
     this.shadowRoot.querySelectorAll('.node[data-p]').forEach((el) => (el.onclick = () => this._edit && this.dispatchEvent(new CustomEvent('hausfluss-select', { detail: { position: el.dataset.p }, bubbles: true, composed: true }))));
     this._sig = null; this._ro && this._ro.disconnect();
@@ -158,15 +180,25 @@ class HausflussCard extends HTMLElement {
 
   _lines() {
     const r = this.shadowRoot, b = r.querySelector('.board'), hub = r.querySelector('.hub'); if (!b || !hub) return;
-    const g = b.getBoundingClientRect(), hb = hub.getBoundingClientRect(), hx = hb.left - g.left + hb.width / 2, hy = hb.top - g.top + hb.height / 2; let o = '';
+    const g = b.getBoundingClientRect(), hb = hub.getBoundingClientRect(), hx = hb.left - g.left + hb.width / 2, hy = hb.top - g.top + hb.height / 2; let off = '', act = '', lastY = hy, btTop = null;
+    if (this._narrow) r.querySelectorAll('.node[data-p]:not(.hub)').forEach((el) => { const q = el.getBoundingClientRect(); if (el.dataset.p === 'bottom') btTop = q.top - g.top; else lastY = Math.max(lastY, q.top - g.top + q.height / 2); });
     r.querySelectorAll('.node[data-p]:not(.hub)').forEach((el) => {
       const n = this._map[el.dataset.p], p = POS[n.position], q = el.getBoundingClientRect(), nx = q.left - g.left + q.width / 2, ny = q.top - g.top + q.height / 2;
-      const vert = p[1] === 1 || p[1] === 5, mx = (hx + nx) / 2, my = (hy + ny) / 2, on = el.classList.contains('on'), col = n.color || p[3];
-      const d = vert ? `M${hx},${hy} C${hx},${my} ${nx},${my} ${nx},${ny}` : `M${hx},${hy} C${mx},${hy} ${mx},${ny} ${nx},${ny}`;
-      o += `<path id="p_${n.position}" d="${d}" fill="none" stroke="${col}" stroke-opacity="${on ? 0.9 : 0.25}" stroke-width="${on ? 3 : 2}" stroke-linecap="round"/>`;
-      if (on) o += `<circle r="4.5" fill="${col}"><animateMotion dur="2.4s" repeatCount="indefinite" keyPoints="${el._w > 0 ? '0;1' : '1;0'}" keyTimes="0;1" calcMode="linear"><mpath href="#p_${n.position}"/></animateMotion></circle>`;
+      const on = el.classList.contains('on'), col = n.color || p[3]; let d, vd = null;
+      if (this._narrow) {
+        if (n.position === 'bottom') { d = `M${hx},${hy} L${hx},${q.top - g.top}`; vd = `M${hx},${lastY} L${hx},${q.top - g.top}`; }
+        else { const lf = nx < hx, ex = (lf ? q.right : q.left) - g.left, rr = Math.min(14, Math.abs(ex - hx)); d = `M${hx},${hy} L${hx},${ny - rr} Q${hx},${ny} ${hx + (lf ? -rr : rr)},${ny} L${ex},${ny}`; vd = `M${hx},${ny - rr} Q${hx},${ny} ${hx + (lf ? -rr : rr)},${ny} L${ex},${ny}`; }
+      } else {
+        const vert = p[1] === 1 || p[1] === 5, mx = (hx + nx) / 2, my = (hy + ny) / 2;
+        d = vert ? `M${hx},${hy} C${hx},${my} ${nx},${my} ${nx},${ny}` : `M${hx},${hy} C${mx},${hy} ${mx},${ny} ${nx},${ny}`;
+      }
+      const st = `fill="none" stroke="${col}" stroke-opacity="${on ? 0.9 : 0.25}" stroke-width="${on ? 3 : 2}" stroke-linecap="round" stroke-linejoin="round"`;
+      const path = vd ? `<path id="p_${n.position}" d="${d}" fill="none" stroke="none"/><path d="${vd}" ${st}/>` : `<path id="p_${n.position}" d="${d}" ${st}/>`;
+      if (on) act += path + `<circle r="4.5" fill="${col}"><animateMotion dur="2.4s" repeatCount="indefinite" keyPoints="${el._w > 0 ? '0;1' : '1;0'}" keyTimes="0;1" calcMode="linear"><mpath href="#p_${n.position}"/></animateMotion></circle>`;
+      else off += path;
     });
-    r.querySelector('svg.lines').innerHTML = o;
+    if (this._narrow) off = `<path d="M${hx},${hy} L${hx},${btTop ?? lastY}" fill="none" stroke="#2a3a56" stroke-width="3" stroke-linecap="round"/>` + off;
+    r.querySelector('svg.lines').innerHTML = off + act;
   }
 }
 
