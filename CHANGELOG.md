@@ -1,5 +1,19 @@
 # Änderungen
 
+## 0.0.9.1
+- **Korrigiert:** In 0.0.9 wurden bei der Berechnung auch die Verbraucher-Kacheln (Steckdose, Auto, …) abgezogen. Das war der Restverbrauch und nicht der Hausverbrauch. Jetzt ist der Standard der **Gesamtverbrauch** (Zufluss minus Einspeisung und Akku laden).
+- Neu: Auswahl „Berechnung“ bei der Haus-Kachel (`calc: total` oder `rest`). „Restverbrauch“ liefert den bisherigen Wert aus 0.0.9.
+- Neu: Im Editor der Haus-Kachel zeigt „So wird der Hausverbrauch berechnet“ alle einfließenden Kacheln mit Wert und warnt, wenn Quelle, Netz oder Akku mit Flussart „Beides“ fehlen.
+
+## 0.0.9
+- Haus-Kachel: „Unten“ zeigt jetzt den **berechneten Hausverbrauch** (Zufluss minus Abfluss aller Kacheln), solange kein eigener Sensor gewählt ist. Der Kopfbereich nutzt denselben Wert.
+- Die **Beschriftung unter den Werten** lässt sich selbst festlegen (`top_label`, `bottom_label`, `left_label`, `right_label`), auch bei der Haus-Kachel. Im Editor steht unter jedem Sensor ein Feld dafür, die automatische Beschriftung erscheint als Platzhalter.
+- Lange Beschriftungen links und rechts werden mit „…“ gekürzt.
+
+## 0.0.8
+- Behoben: Die Auswahlfelder für Entitäten überlappten sich bei langen Namen und IDs. Die Felder bleiben jetzt in ihrer Spalte, lange Texte werden mit „…“ gekürzt.
+- Geprüft bei 1000, 600 und 390 Pixel Breite.
+
 ## 0.0.7
 - **Behoben: Die Integration wurde in 0.0.5 und 0.0.6 nicht geladen.** Die Datei `const.py` war durch einen Fehler beim Paketieren leer, dadurch scheiterte der Import beim Start. Funktionsumfang ist sonst wie in 0.0.6. Bitte 0.0.5 und 0.0.6 überspringen.
 

@@ -1,4 +1,4 @@
-# Hausfluss – Modul 3 Energiefluss (v0.0.7)
+# Hausfluss – Modul 3 Energiefluss (v0.0.9.1)
 
 Lovelace-Karte für Home Assistant: ein Haus-Knoten in der Mitte, bis zu 9 Kacheln drumherum.
 Jede Kachel hat ein Bild in der Mitte und je eine Entität oben, unten, links und rechts.
@@ -26,6 +26,14 @@ Mit der Integration entsteht automatisch eine Seite **Energiefluss** links in de
   - *Liefert*: Energie fließt von der Kachel ins Haus, z. B. Solar (ein Sensor, optional).
   - *Beides – ein Sensor mit Vorzeichen*: für Netz oder Akku. Positiv heißt „zur Kachel“, negativ „ins Haus“. Liefert dein Sensor es umgekehrt, setzt du „Vorzeichen umkehren“.
   - *Beides – zwei Sensoren*: z. B. Netzbezug und Einspeisung oder Laden und Entladen. Der größere Wert bestimmt die Richtung.
+- **Haus-Kachel:** Lässt du bei „Haus (Mitte)“ das Feld „Unten“ leer, wird der Hausverbrauch automatisch berechnet. Dafür braucht es keine zusätzlichen Entitäten bei der Haus-Kachel, die Werte kommen aus den anderen Kacheln:
+  - **Zufluss:** Kacheln mit Flussart „Liefert“ (Solar) sowie Netzbezug und Akku entladen von Kacheln mit „Beides“.
+  - **Abzug:** Einspeisung und Akku laden (ebenfalls „Beides“).
+  - **Gesamtverbrauch** (Standard) = Zufluss − Abzug. Kacheln mit „Verbraucht“ (Steckdose, Auto, …) gehören zum Haus und werden **nicht** abgezogen.
+  - **Restverbrauch** (Auswahl „Berechnung“) zieht zusätzlich die Verbraucher-Kacheln ab, ergibt also den Verbrauch ohne die einzeln erfassten Geräte.
+  - Im Editor der Haus-Kachel zeigt „So wird der Hausverbrauch berechnet“, welche Kacheln mit welchem Wert einfließen, und warnt, wenn Netz oder Akku mit Flussart „Beides“ fehlen. Ohne sie ist das Ergebnis nicht vollständig.
+  - Ab 1000 W erscheint der Wert in kW, negative Werte durch Messabweichungen als 0 W. Wählst du bei „Unten“ einen eigenen Sensor, hat dieser Vorrang.
+- **Beschriftungen:** Unter jedem Sensor legst du die Beschriftung selbst fest, z. B. „Erzeugung“ statt „Leistung“. Leer = automatisch (letztes Wort des Entitätsnamens). Oben und unten ersetzt sie die Zeile unter dem Wert, links und rechts ersetzt sie die Einheit.
 - **Kopfbereich:** Rechts steht ein Bild (Standard: Haus mit Blitz). Es lässt sich ändern oder mit „Kein Bild“ ausblenden.
 - Gespeichert wird zentral, alle Benutzer sehen dieselbe Seite.
 - Titel, Symbol und „nur für Administratoren“ stellst du unter *Einstellungen → Geräte & Dienste → Hausfluss → Konfigurieren* ein.
@@ -34,6 +42,8 @@ Mit der Integration entsteht automatisch eine Seite **Energiefluss** links in de
 ![Einrichtung der Kacheln](images/editor.png)
 
 ![Flussart mit zwei Sensoren](images/flussart.png)
+
+![Haus-Kachel mit berechnetem Hausverbrauch](images/haus.png)
 
 | Entität suchen | Bild suchen |
 |---|---|
@@ -49,7 +59,7 @@ Ist die Karte schmaler als 600 Pixel, wechselt sie automatisch in ein Handy-Layo
 4. Seite öffnen → **Anpassen** → Kacheln und Entitäten wählen.
 
 Manuell: den Ordner `custom_components/hausfluss` nach `config/custom_components/` kopieren.
-Beim Veröffentlichen auf GitHub (`Maddog3010/hausfluss`) ein Release mit dem Tag `v0.0.7` anlegen.
+Beim Veröffentlichen auf GitHub (`Maddog3010/hausfluss`) ein Release mit dem Tag `v0.0.9.1` anlegen.
 
 ## YAML-Beispiel
 ```yaml
@@ -61,7 +71,9 @@ hub:
   name: Haus
   image: 🏠
   top: sensor.haus_energie_heute   # Chip „Hausverbrauch heute“
-  bottom: sensor.haus_leistung     # große Zahl im Kopfbereich
+  # bottom leer = Hausverbrauch wird berechnet (sonst eigener Sensor)
+  calc: total                      # total = Gesamtverbrauch, rest = Restverbrauch
+  bottom_label: Hausverbrauch      # Beschriftung unter dem Wert (optional)
   chips: [sensor.akku_ladestand]   # weitere Chips (optional)
 nodes:
   - position: top_1        # top_1, top_2, left_1-3, right_1-3, bottom
@@ -74,6 +86,7 @@ nodes:
     bottom: sensor.pv_leistung
     left: sensor.pv_spannung
     right: sensor.pv_temperatur
+    bottom_label: Erzeugung        # optional: top_label, bottom_label, left_label, right_label
     power: sensor.pv_leistung   # optional, steuert die Fluss-Animation
   - position: left_3
     name: Netz

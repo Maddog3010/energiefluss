@@ -1,5 +1,5 @@
-/* Hausfluss – Modul 3 Energiefluss · Version 0.0.7 */
-const VERSION = '0.0.7';
+/* Hausfluss – Modul 3 Energiefluss · Version 0.0.9.1 */
+const VERSION = '0.0.9.1';
 const POS = {
   top_1: [2, 1, 'in', '#facc15'], top_2: [3, 1, 'in', '#fbbf24'],
   left_1: [1, 2, 'out', '#f97316'], left_2: [1, 3, 'out', '#38bdf8'], left_3: [1, 4, 'out', '#a78bfa'],
@@ -43,6 +43,27 @@ const img = (v) => /^svg:/.test(v) ? svgTag(v.slice(4)) : /^(\/|https?:)/.test(v
 const flowOf = (n) => n.flow || (n.direction ? (n.direction === 'in' ? 'supply' : 'consume') : POS[n.position] && POS[n.position][2] === 'in' ? 'supply' : 'consume');
 const toW = (st) => { const v = parseFloat(st?.state); return isNaN(v) ? NaN : /^kW$/i.test(st.attributes.unit_of_measurement || '') ? v * 1000 : v; };
 
+const pidOf = (n, h) => { const b = n.bottom && h.states[n.bottom]; return n.power || (b && /^k?W$/i.test(b.attributes.unit_of_measurement || '') ? n.bottom : ''); };
+// Leistung einer Kachel in W: positiv = zur Kachel, negativ = ins Haus
+const nodeW = (n, h) => {
+  const g = (id) => (id && h.states[id] ? toW(h.states[id]) : NaN), f = flowOf(n);
+  if (f === 'split') { const a = g(n.power_to_node), b = g(n.power_to_house); return (isNaN(a) ? 0 : Math.abs(a)) - (isNaN(b) ? 0 : Math.abs(b)); }
+  const v = g(pidOf(n, h)); if (isNaN(v)) return 0;
+  return f === 'supply' ? -Math.abs(v) : f === 'consume' ? Math.abs(v) : n.invert ? -v : v;
+};
+// Hausverbrauch: Zufluss (Solar, Netzbezug, Akku entladen) minus Abfluss (Einspeisung, Akku laden).
+// Verbraucher-Kacheln gehören zum Haus; nur der Restverbrauch zieht sie zusätzlich ab.
+const calcHouse = (nodes, h) => {
+  let total = 0, cons = 0, bidir = false; const parts = [], cs = [];
+  nodes.forEach((n) => {
+    const f = flowOf(n), w = nodeW(n, h);
+    if (f === 'consume') { if (w) { cons += Math.abs(w); cs.push({ n, v: Math.abs(w) }); } return; }
+    if (f === 'both' || f === 'split') bidir = true;
+    total += -w; parts.push({ n, v: -w });
+  });
+  return { total: Math.max(0, total), rest: Math.max(0, total - cons), parts, cons: cs, bidir };
+};
+
 const CSS = `
 :host{display:block}
 ha-card{display:block;background:none;box-shadow:none;border:none;color:#e8eef8;font-family:inherit}
@@ -71,6 +92,7 @@ svg.lines{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-eve
 .s.e{color:#2dd4bf;opacity:.55}
 .s.t{top:8%;left:50%;transform:translateX(-50%)}.s.b{bottom:8%;left:50%;transform:translateX(-50%)}
 .s.l{left:3%;top:50%;transform:translateY(-50%);width:28%}.s.r{right:3%;top:50%;transform:translateY(-50%);width:28%}
+.s.l i,.s.r i{overflow:hidden;text-overflow:ellipsis}
 .hub .s.t{font-size:10cqw}.hub .s.b{font-size:9cqw}
 .narrow .board{padding:14px}
 .narrow .grid{grid-template-columns:1fr 1fr;column-gap:36px;row-gap:14px}
@@ -127,13 +149,10 @@ class HausflussCard extends HTMLElement {
     this._upd();
   }
 
-  _pid(n) { const b = n.bottom && this._h.states[n.bottom]; return n.power || (b && /^k?W$/i.test(b.attributes.unit_of_measurement || '') ? n.bottom : ''); }
-  _w(n) {
-    const h = this._h, g = (id) => (id && h.states[id] ? toW(h.states[id]) : NaN), f = flowOf(n);
-    if (f === 'split') { const a = g(n.power_to_node), b = g(n.power_to_house); return (isNaN(a) ? 0 : Math.abs(a)) - (isNaN(b) ? 0 : Math.abs(b)); }
-    const v = g(this._pid(n)); if (isNaN(v)) return 0;
-    return f === 'supply' ? -Math.abs(v) : f === 'consume' ? Math.abs(v) : n.invert ? -v : v;
-  }
+  _hubW() { const c = calcHouse(Object.values(this._map).filter((n) => n.position !== 'hub'), this._h); return this._map.hub.calc === 'rest' ? c.rest : c.total; }
+  _fmtW(w) { const l = this._h.locale?.language || 'de'; return w >= 1000 ? (w / 1000).toLocaleString(l, { maximumFractionDigits: 2 }) + ' kW' : Math.round(w).toLocaleString(l) + ' W'; }
+  _pid(n) { return pidOf(n, this._h); }
+  _w(n) { return nodeW(n, this._h); }
 
   _fmt(id) {
     const st = this._h.states[id]; if (!st) return ['–', '', ''];
@@ -146,18 +165,21 @@ class HausflussCard extends HTMLElement {
     const h = this._h, r = this.shadowRoot; if (!h || !r.querySelector('.grid')) return;
     const lang = h.locale?.language || 'de';
     r.getElementById('w').classList.toggle('edit', this._edit);
+    const hubW = this._hubW(), SK = { t: 'top', b: 'bottom', l: 'left', r: 'right' };
     r.querySelectorAll('.s').forEach((el) => {
-      const id = el.dataset.e; let html = '';
-      if (id) { const [v, u, l] = this._fmt(id); html = /[lr]/.test(el.className.split(' ')[1]) ? `${v}<i>${esc(u)}</i>` : `${v} ${esc(u)}<i>${esc(l)}</i>`; el.title = h.states[id]?.attributes.friendly_name || id; }
+      const id = el.dataset.e, nd = el.closest('.node'), n = this._map[nd.dataset.p] || {}, side = SK[el.className.split(' ')[1]], lab = String(n[side + '_label'] || '').trim();
+      let html = '', calc = false;
+      if (id) { const [v, u, l] = this._fmt(id); html = 'lr'.includes(side[0]) ? `${v}<i>${esc(lab || u)}</i>` : `${v} ${esc(u)}<i>${esc(lab || l)}</i>`; el.title = h.states[id]?.attributes.friendly_name || id; }
+      else if (nd.dataset.p === 'hub' && side === 'bottom') { calc = true; html = `${this._fmtW(hubW)}<i>${esc(lab || (this._map.hub.calc === 'rest' ? 'Restverbrauch' : 'Hausverbrauch'))}</i>`; el.title = 'Berechnet aus allen Kacheln'; }
       else if (this._edit) html = '+';
-      el.classList.toggle('e', !id && this._edit);
+      el.classList.toggle('e', !id && !calc && this._edit);
       if (el._v !== html) { el._v = html; el.innerHTML = html; }
     });
     const hv = r.getElementById('hv');
     if (hv) {
-      const hb = this._map.hub, pe = hb.power || hb.bottom, w = pe && h.states[pe] ? toW(h.states[pe]) : NaN;
+      const hb = this._map.hub, pe = hb.power || hb.bottom, w = pe ? (h.states[pe] ? toW(h.states[pe]) : NaN) : hubW;
       hv.textContent = isNaN(w) ? '–' : Math.abs(Math.round(w)).toLocaleString(lang);
-      r.getElementById('hl').textContent = !isNaN(w) && w < 0 ? 'Einspeisung jetzt' : 'Hausverbrauch jetzt';
+      r.getElementById('hl').textContent = !isNaN(w) && w < 0 ? 'Einspeisung jetzt' : !pe && hb.calc === 'rest' ? 'Restverbrauch jetzt' : 'Hausverbrauch jetzt';
       const ch = []; let sol = 0, has = false;
       Object.values(this._map).forEach((n) => {
         if (n.position === 'hub' || flowOf(n) !== 'supply') return;
@@ -211,13 +233,17 @@ h2{margin:0;font-size:15px}p{margin:0;font-size:12px;color:#8a98b3}
 .tg.cur{border-color:#2dd4bf}.tg.off button{opacity:.5;text-decoration:line-through}
 .tg button{background:none;border:0;color:#e8eef8;font:600 12px inherit;font-family:inherit;cursor:pointer;padding:0}
 .tg input{accent-color:#2dd4bf;margin:0}
-.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
-label,.fld{display:grid;gap:5px;font-size:12px;color:#8a98b3;font-weight:600;align-content:start}
+.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:10px}.f>*{min-width:0}
+label,.fld{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;gap:5px;font-size:12px;color:#8a98b3;font-weight:600;align-content:start}
 input:not([type=checkbox]),select{background:#1c2940;border:1px solid #26344d;color:#e8eef8;border-radius:10px;padding:9px 10px;font:500 13px inherit;font-family:inherit;min-width:0;width:100%;box-sizing:border-box}
 input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid #2dd4bf;outline-offset:2px}
-.pk{position:relative}
-.pkb{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;text-align:left;background:#1c2940;border:1px solid #26344d;color:#e8eef8;border-radius:10px;padding:6px 10px;font:500 13px inherit;font-family:inherit;cursor:pointer}
-.pkb::after{content:"▾";margin-left:auto;color:#8a98b3}.pkb:hover{border-color:#2dd4bf}
+.pk{position:relative;min-width:0;width:100%}
+.fld .lbl{font-size:12px;padding:6px 10px}
+.calc{background:#101a2c;border:1px solid #26344d;border-radius:12px;padding:12px;display:grid;gap:8px}.calc b{font-size:12px}
+.calc ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}.calc li,.calc .sum{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.calc em{font-style:normal;font-weight:600;color:#2dd4bf;white-space:nowrap}.calc .sum{border-top:1px solid #26344d;padding-top:6px;font-weight:700}.calc .warn{color:#f59e0b}
+.pkb{min-width:0;max-width:100%;overflow:hidden;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;min-height:42px;text-align:left;background:#1c2940;border:1px solid #26344d;color:#e8eef8;border-radius:10px;padding:6px 10px;font:500 13px inherit;font-family:inherit;cursor:pointer}
+.pkb::after{content:"▾";margin-left:auto;padding-left:6px;flex:none;color:#8a98b3}.pkb:hover{border-color:#2dd4bf}
 .ph{color:#6f7e9a}
 .pop{position:absolute;left:0;top:calc(100% + 4px);z-index:30;width:max(100%,300px);max-width:86vw;background:#101a2c;border:1px solid #2dd4bf88;border-radius:12px;box-shadow:0 14px 34px #000a;padding:8px}
 .pop .q{margin-bottom:6px}.list{max-height:270px;overflow:auto;display:grid;gap:2px}
@@ -256,8 +282,22 @@ class HausflussEditor extends HTMLElement {
   _picked(p) { this.dispatchEvent(new CustomEvent('hausfluss-selected', { detail: { position: p }, bubbles: true, composed: true })); }
   _closeAll() { this.shadowRoot.querySelectorAll('.pop').forEach((p) => (p.hidden = true)); }
 
-  _entLabel(id) {
-    if (!id) return '<span class="ph">Entität wählen …</span>';
+  _calcUi(n) {
+    if (n.bottom || !this._h) return '';
+    const nodes = (this._c.nodes || []).filter((x) => POS[x.position] && x.enabled !== false), c = calcHouse(nodes, this._h), rest = n.calc === 'rest';
+    const nm = (x) => esc(x.name || POSNAME[x.position]), w = (v) => Math.round(Math.abs(v)).toLocaleString('de') + ' W';
+    const rows = c.parts.map((x) => `<li><span>${nm(x.n)}</span><em>${x.v >= 0 ? '+' : '−'}${w(x.v)}</em></li>`).join('') || '<li><span>keine Quelle gefunden</span><em>–</em></li>';
+    const cons = rest ? c.cons.map((x) => `<li><span>${nm(x.n)} (Verbraucher)</span><em>−${w(x.v)}</em></li>`).join('') : '';
+    const warn = !c.parts.length ? 'Keine Quelle gefunden. Lege Kacheln für Solar, Netz und Akku an und wähle bei Netz und Akku die Flussart „Beides“.' : !c.bidir ? 'Keine Kachel mit Flussart „Beides“ (Netz, Akku) gefunden. Ohne Netzbezug, Einspeisung und Akku kann der Wert falsch sein.' : '';
+    return `<label>Berechnung<select data-calc><option value="total"${rest ? '' : ' selected'}>Gesamtverbrauch</option><option value="rest"${rest ? ' selected' : ''}>Restverbrauch (ohne Verbraucher-Kacheln)</option></select></label><div class="calc" style="grid-column:1/-1"><b>So wird der Hausverbrauch berechnet (Momentaufnahme)</b><ul>${rows}${cons}</ul><div class="sum"><span>${rest ? 'Restverbrauch' : 'Gesamtverbrauch'}</span><em>${w(rest ? c.rest : c.total)}</em></div>${warn ? `<p class="warn">${warn}</p>` : ''}<p>Zufluss: Solar, Netzbezug, Akku entladen. Abzug: Einspeisung, Akku laden. Kacheln mit Flussart „Verbraucht“ gehören zum Haus und werden nur beim Restverbrauch abgezogen.</p></div>`;
+  }
+  _auto(n, side, hub) {
+    const id = n[side]; if (!id) return hub && side === 'bottom' ? (n.calc === 'rest' ? 'Restverbrauch' : 'Hausverbrauch') : '';
+    const st = this._h?.states?.[id]; if (!st) return '';
+    return 'lr'.includes(side[0]) ? st.attributes.unit_of_measurement || '' : (st.attributes.friendly_name || id).split(' ').pop();
+  }
+  _entLabel(id, calc) {
+    if (!id) return calc ? '<span class="ph">Automatisch berechnet (Hausverbrauch)</span>' : '<span class="ph">Entität wählen …</span>';
     const st = this._h?.states?.[id];
     return `<span class="tx"><b>${esc(st?.attributes.friendly_name || id)}</b><i>${esc(id)}${st ? ' · ' + esc(st.state + ' ' + (st.attributes.unit_of_measurement || '')) : ' · nicht gefunden'}</i></span>`;
   }
@@ -271,8 +311,10 @@ class HausflussEditor extends HTMLElement {
     const it = this._imgFind(v);
     return `<span class="th">${img(v)}</span><span class="tx"><b>${esc(it ? it.n : v)}</b><i>${it ? it.t : 'Eigenes Bild'}</i></span>`;
   }
-  _fld(kind, f, label, val) {
-    return `<div class="fld"><span>${label}</span><div class="pk" data-k="${kind}" data-f="${f}"><button type="button" class="pkb" aria-haspopup="listbox">${kind === 'entity' ? this._entLabel(val) : this._imgLabel(val)}</button><div class="pop" hidden><input class="q" placeholder="${kind === 'entity' ? 'Suchen …' : 'Suchen oder mdi:icon / Pfad eingeben'}" autocomplete="off" aria-label="Suchen"><div class="list" role="listbox"></div></div></div></div>`;
+  _fld(kind, f, label, val, side) {
+    const n = this._node(this._sel), hub = this._sel === 'hub';
+    const lb = side ? `<input class="lbl" data-lb="${side}" value="${esc(n[side + '_label'] || '')}" placeholder="${esc(this._auto(n, side, hub) || 'Beschriftung')}" aria-label="Beschriftung ${FL[side]}">` : '';
+    return `<div class="fld"><span>${label}</span><div class="pk" data-k="${kind}" data-f="${f}"><button type="button" class="pkb" aria-haspopup="listbox">${kind === 'entity' ? this._entLabel(val, hub && f === 'bottom') : this._imgLabel(val)}</button><div class="pop" hidden><input class="q" placeholder="${kind === 'entity' ? 'Suchen …' : 'Suchen oder mdi:icon / Pfad eingeben'}" autocomplete="off" aria-label="Suchen"><div class="list" role="listbox"></div></div></div>${lb}</div>`;
   }
   _ents(t) {
     const S = this._h?.states || {};
@@ -314,7 +356,8 @@ class HausflussEditor extends HTMLElement {
     const f = pk.dataset.f, k = pk.dataset.k, p = this._sel;
     if (/^chip\d$/.test(f)) { const cur = this._node('hub').chips || []; this._set('hub', { chips: [0, 1, 2].map((i) => (i === +f[4] ? v : cur[i] || '')).filter(Boolean) }); this._draw(); return; }
     if (f === 'hero_image') this._top({ hero_image: v || undefined }); else this._set(p, { [f]: v });
-    pk.querySelector('.pkb').innerHTML = k === 'entity' ? this._entLabel(v) : this._imgLabel(v);
+    pk.querySelector('.pkb').innerHTML = k === 'entity' ? this._entLabel(v, f === 'bottom' && p === 'hub') : this._imgLabel(v);
+    const lb = pk.parentElement.querySelector('.lbl'); if (lb) lb.placeholder = this._auto(this._node(p), f, p === 'hub') || 'Beschriftung';
     this._chips(); this._yaml();
   }
   _flowUi(n, fl) {
@@ -350,17 +393,21 @@ class HausflussEditor extends HTMLElement {
     const c = this._c, p = this._sel, hub = p === 'hub', n = this._node(p), col = n.color || (POS[p] || [])[3] || '#2dd4bf', chips = n.chips || [], fl = hub ? '' : flowOf({ ...n, position: p });
     this.shadowRoot.innerHTML = `<style>${ECSS}</style><div class="panel"><div><h2>${esc(n.name || (hub ? 'Haus' : POSNAME[p]))}</h2><p>Haken setzen zeigt die Kachel an, Haken entfernen blendet sie aus. Namen antippen zum Bearbeiten.</p></div>
 <div class="tgl" id="tgl"></div>
+<p>Unter jedem Sensor legst du die Beschriftung selbst fest (leer = automatisch). Links und rechts ersetzt sie die Einheit.${hub ? ' „Unten“ leer lassen: Der Hausverbrauch wird aus allen Kacheln berechnet.' : ''}</p>
 <div class="f"><label>Titel der Karte<input id="ti" value="${esc(c.title || '')}" placeholder="Modul 3 – Energiefluss"></label><label class="row"><input type="checkbox" id="sh"${c.show_hero === false ? '' : ' checked'}>Kopfbereich anzeigen</label>${this._fld('image', 'hero_image', 'Bild im Kopfbereich', c.hero_image)}</div>
 <div class="f"><label>Name<input data-f="name" value="${esc(n.name || '')}"></label>${this._fld('image', 'image', 'Bild der Kachel', n.image)}
-${SIDES.map((s) => this._fld('entity', s, FL[s], n[s])).join('')}
-${hub ? [0, 1, 2].map((i) => this._fld('entity', 'chip' + i, 'Chip ' + (i + 1) + ' (Kopfbereich)', chips[i] || '')).join('') : this._flowUi(n, fl) + `<div class="fld"><span>Akzentfarbe</span><div class="sw">${SW.map((x) => `<button data-c="${x}" style="background:${x}" class="${x === col ? 'a' : ''}" aria-label="Farbe ${x}"></button>`).join('')}</div></div>`}</div>
+${SIDES.map((s) => this._fld('entity', s, hub && s === 'bottom' ? 'Unten (leer = berechnet)' : FL[s], n[s], s)).join('')}
+${hub ? this._calcUi(n) + [0, 1, 2].map((i) => this._fld('entity', 'chip' + i, 'Chip ' + (i + 1) + ' (Kopfbereich)', chips[i] || '')).join('') : this._flowUi(n, fl) + `<div class="fld"><span>Akzentfarbe</span><div class="sw">${SW.map((x) => `<button data-c="${x}" style="background:${x}" class="${x === col ? 'a' : ''}" aria-label="Farbe ${x}"></button>`).join('')}</div></div>`}</div>
 <pre id="y"></pre></div>`;
     this._chips(); this._yaml();
     const r = this.shadowRoot;
     r.getElementById('ti').onchange = (e) => this._top({ title: e.target.value.trim() });
     r.getElementById('sh').onchange = (e) => this._top({ show_hero: e.target.checked ? undefined : false });
     r.querySelectorAll('.pk').forEach((pk) => this._wire(pk));
+    r.querySelectorAll('input.lbl').forEach((i) => (i.onchange = () => { this._set(p, { [i.dataset.lb + '_label']: i.value.trim() }); this._yaml(); }));
     r.querySelectorAll('input[data-f],select[data-f]').forEach((i) => (i.onchange = () => { this._set(p, { [i.dataset.f]: i.value.trim() }); this._chips(); this._yaml(); }));
+    const cs = r.querySelector('[data-calc]');
+    if (cs) cs.onchange = () => { this._set('hub', { calc: cs.value === 'rest' ? 'rest' : '' }); this._draw(); };
     const fs = r.querySelector('[data-fl]');
     if (fs) fs.onchange = () => { const v = fs.value; this._set(p, { flow: v, direction: '', ...(v !== 'split' ? { power_to_node: '', power_to_house: '' } : {}), ...(v !== 'both' ? { invert: '' } : {}) }); this._draw(); };
     const iv = r.querySelector('[data-inv]');
