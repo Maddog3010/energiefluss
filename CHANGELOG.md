@@ -1,5 +1,19 @@
 # Änderungen
 
+## 0.0.5
+- Das Feld „Richtung“ ist jetzt die **Flussart**: verbraucht, liefert, beides mit einem Sensor (Vorzeichen, optional umkehrbar) oder beides mit zwei Sensoren (`power_to_node`, `power_to_house`).
+- Der Editor zeigt je nach Flussart nur die passenden Sensorfelder mit Hinweis.
+- Die Fluss-Animation und die Leuchtfarbe richten sich nach der tatsächlichen Richtung des Wertes.
+- Behoben: Die Fluss-Punkte liefen seit 0.0.1 in die falsche Richtung.
+- „Unten“ wird nur noch dann als Fluss-Sensor benutzt, wenn er eine Leistung in W oder kW liefert.
+- Das alte Feld `direction` wird weiter gelesen.
+
+## 0.0.4
+- Entitäten wählst du jetzt über ein Auswahlmenü mit Suchfeld (Name und ID, mit aktuellem Wert, Tastatursteuerung).
+- Bilder wählst du ebenfalls über ein Auswahlmenü mit Suchfeld: 15 mitgelieferte Illustrationen, Emojis, eigene `mdi:`-Symbole und Pfade.
+- Im Kopfbereich steht rechts ein Bild (Option `hero_image`, `none` blendet es aus).
+- Behoben: Verbindungslinien und Symbole kamen sich bei SVG-Bildern in die Quere.
+
 ## 0.0.2
 - Die Integration legt automatisch eine Seite **Energiefluss** in der Seitenleiste an.
 - Auf der Seite: Karte im Vollbild und „Anpassen“ mit dem Editor (Kacheln an/aus, Entitäten, Bilder). Gespeichert wird zentral für alle Benutzer, ändern dürfen nur Administratoren.
