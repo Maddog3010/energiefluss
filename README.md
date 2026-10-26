@@ -1,4 +1,4 @@
-# Hausfluss – Modul 3 Energiefluss (v0.0.2)
+# Hausfluss – Modul 3 Energiefluss (v0.0.5)
 
 Lovelace-Karte für Home Assistant: ein Haus-Knoten in der Mitte, bis zu 9 Kacheln drumherum.
 Jede Kachel hat ein Bild in der Mitte und je eine Entität oben, unten, links und rechts.
