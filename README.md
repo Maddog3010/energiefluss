@@ -1,4 +1,4 @@
-# Hausfluss – Modul 3 Energiefluss (v0.0.9.2)
+# Hausfluss – Energiefluss (v0.0.9.2)
 
 > **Entwicklung eingestellt.** Nachfolger: [Strom & Wärme](https://github.com/Maddog3010/ha-fenster-heizung). Details siehe unten.
 
