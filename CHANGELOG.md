@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.0.9.2
+- **Akku-Sensor mit Vorzeichen:** Bei „Beides – ein Sensor mit Vorzeichen“ gibt es jetzt die Auswahl „Vorzeichen des Sensors“ (Plus = Verbrauch / Laden oder Plus = Lieferung / Entladen) statt des Kästchens „Vorzeichen umkehren“. Für Akkus mit Minus = laden und Plus = entladen: „Plus = Lieferung / Entladen“. Fluss-Animation und Hausverbrauch richten sich danach.
+- Eine Live-Anzeige im Editor zeigt, was der Sensor gerade meldet und in welche Richtung die Energie fließt.
+- Die Berechnung des Hausverbrauchs warnt, wenn eine Kachel „Akku“, „Batterie“, „Speicher“ oder „Netz“ heißt, aber die Flussart „Verbraucht“ hat.
+- **Entwicklung eingestellt:** Hinweis oben auf der Seite („Die Entwicklung von Hausfluss wurde mit Version 0.0.9.2 eingestellt. Das Projekt ist jetzt in „Strom & Wärme“ integriert.“, schließbar) und Wasserzeichen „Entwicklung eingestellt“ quer über dem Bildschirm. Das Wasserzeichen blockiert keine Bedienung.
+
 ## 0.0.9.1
 - **Korrigiert:** In 0.0.9 wurden bei der Berechnung auch die Verbraucher-Kacheln (Steckdose, Auto, …) abgezogen. Das war der Restverbrauch und nicht der Hausverbrauch. Jetzt ist der Standard der **Gesamtverbrauch** (Zufluss minus Einspeisung und Akku laden).
 - Neu: Auswahl „Berechnung“ bei der Haus-Kachel (`calc: total` oder `rest`). „Restverbrauch“ liefert den bisherigen Wert aus 0.0.9.

@@ -1,6 +1,6 @@
 """Konstanten für Hausfluss."""
 DOMAIN = "hausfluss"
-VERSION = "0.0.9.1"
+VERSION = "0.0.9.2"
 URL_BASE = "/hausfluss_static"
 CARD_FILE = "hausfluss-card.js"
 JS_URL = f"{URL_BASE}/{CARD_FILE}?v={VERSION}"

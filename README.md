@@ -1,4 +1,6 @@
-# Energiefluss (v0.0.9.1)
+# Hausfluss – Modul 3 Energiefluss (v0.0.9.2)
+
+> **Entwicklung eingestellt.** Nachfolger: [Strom & Wärme](https://github.com/Maddog3010/ha-fenster-heizung). Details siehe unten.
 
 Lovelace-Karte für Home Assistant: ein Haus-Knoten in der Mitte, bis zu 9 Kacheln drumherum.
 Jede Kachel hat ein Bild in der Mitte und je eine Entität oben, unten, links und rechts.
@@ -24,7 +26,7 @@ Mit der Integration entsteht automatisch eine Seite **Energiefluss** links in de
 - **Flussart:** Pro Kachel legst du fest, wie Energie fließt. Danach zeigt der Editor genau die passenden Sensorfelder:
   - *Verbraucht*: Energie fließt vom Haus zur Kachel (ein Sensor, optional).
   - *Liefert*: Energie fließt von der Kachel ins Haus, z. B. Solar (ein Sensor, optional).
-  - *Beides – ein Sensor mit Vorzeichen*: für Netz oder Akku. Positiv heißt „zur Kachel“, negativ „ins Haus“. Liefert dein Sensor es umgekehrt, setzt du „Vorzeichen umkehren“.
+  - *Beides – ein Sensor mit Vorzeichen*: für Netz oder Akku. Unter „Vorzeichen des Sensors“ wählst du, was ein positiver Wert bedeutet. Beispiel Akku mit Minus = laden und Plus = entladen: „Plus = Lieferung / Entladen“. Eine Live-Anzeige zeigt sofort, in welche Richtung die Energie gerade fließt.
   - *Beides – zwei Sensoren*: z. B. Netzbezug und Einspeisung oder Laden und Entladen. Der größere Wert bestimmt die Richtung.
 - **Haus-Kachel:** Lässt du bei „Haus (Mitte)“ das Feld „Unten“ leer, wird der Hausverbrauch automatisch berechnet. Dafür braucht es keine zusätzlichen Entitäten bei der Haus-Kachel, die Werte kommen aus den anderen Kacheln:
   - **Zufluss:** Kacheln mit Flussart „Liefert“ (Solar) sowie Netzbezug und Akku entladen von Kacheln mit „Beides“.
@@ -43,6 +45,8 @@ Mit der Integration entsteht automatisch eine Seite **Energiefluss** links in de
 
 ![Flussart mit zwei Sensoren](images/flussart.png)
 
+![Akku-Sensor mit Vorzeichen (Minus = laden, Plus = entladen)](images/akku.png)
+
 ![Haus-Kachel mit berechnetem Hausverbrauch](images/haus.png)
 
 | Entität suchen | Bild suchen |
@@ -52,6 +56,9 @@ Mit der Integration entsteht automatisch eine Seite **Energiefluss** links in de
 ## Mobil
 Ist die Karte schmaler als 600 Pixel, wechselt sie automatisch in ein Handy-Layout: Das Haus steht oben, die Kacheln darunter in zwei Spalten, verbunden über eine Sammellinie. So bleiben alle Werte gut lesbar.
 
+## Entwicklung eingestellt
+Die Entwicklung von Hausfluss wurde mit Version 0.0.9.2 eingestellt. Das Projekt ist jetzt in [Strom & Wärme](https://github.com/Maddog3010/ha-fenster-heizung) integriert. Die Seite zeigt dazu oben einen Hinweis (mit ✕ schließbar) und ein Wasserzeichen „Entwicklung eingestellt“ quer über dem Bildschirm.
+
 ## Installation (HACS, Kategorie Integration)
 1. HACS → ⋮ → *Benutzerdefinierte Repositories* → Repository-URL `https://github.com/Maddog3010/hausfluss` eintragen, Kategorie **Integration**.
 2. „Hausfluss“ installieren und Home Assistant neu starten.
@@ -59,7 +66,7 @@ Ist die Karte schmaler als 600 Pixel, wechselt sie automatisch in ein Handy-Layo
 4. Seite öffnen → **Anpassen** → Kacheln und Entitäten wählen.
 
 Manuell: den Ordner `custom_components/hausfluss` nach `config/custom_components/` kopieren.
-Beim Veröffentlichen auf GitHub (`Maddog3010/hausfluss`) ein Release mit dem Tag `v0.0.9.1` anlegen.
+Beim Veröffentlichen auf GitHub (`Maddog3010/hausfluss`) ein Release mit dem Tag `v0.0.9.2` anlegen.
 
 ## YAML-Beispiel
 ```yaml
@@ -97,7 +104,7 @@ nodes:
     name: Akku
     flow: both             # ein Sensor mit Vorzeichen
     power: sensor.akku_leistung
-    invert: false          # true, wenn positiv = Entladen
+    invert: true           # true = Plus bedeutet Entladen (Minus = Laden)
 ```
 Tippen auf einen Wert öffnet den Verlauf der Entität.
 

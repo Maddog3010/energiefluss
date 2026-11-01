@@ -1,5 +1,5 @@
-/* Hausfluss – Modul 3 Energiefluss · Version 0.0.9.1 */
-const VERSION = '0.0.9.1';
+/* Hausfluss – Modul 3 Energiefluss · Version 0.0.9.2 */
+const VERSION = '0.0.9.2';
 const POS = {
   top_1: [2, 1, 'in', '#facc15'], top_2: [3, 1, 'in', '#fbbf24'],
   left_1: [1, 2, 'out', '#f97316'], left_2: [1, 3, 'out', '#38bdf8'], left_3: [1, 4, 'out', '#a78bfa'],
@@ -242,6 +242,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .calc{background:#101a2c;border:1px solid #26344d;border-radius:12px;padding:12px;display:grid;gap:8px}.calc b{font-size:12px}
 .calc ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}.calc li,.calc .sum{display:flex;justify-content:space-between;gap:10px;font-size:13px}
 .calc em{font-style:normal;font-weight:600;color:#2dd4bf;white-space:nowrap}.calc .sum{border-top:1px solid #26344d;padding-top:6px;font-weight:700}.calc .warn{color:#f59e0b}
+.panel .live{color:#2dd4bf}
 .pkb{min-width:0;max-width:100%;overflow:hidden;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;min-height:42px;text-align:left;background:#1c2940;border:1px solid #26344d;color:#e8eef8;border-radius:10px;padding:6px 10px;font:500 13px inherit;font-family:inherit;cursor:pointer}
 .pkb::after{content:"▾";margin-left:auto;padding-left:6px;flex:none;color:#8a98b3}.pkb:hover{border-color:#2dd4bf}
 .ph{color:#6f7e9a}
@@ -282,6 +283,12 @@ class HausflussEditor extends HTMLElement {
   _picked(p) { this.dispatchEvent(new CustomEvent('hausfluss-selected', { detail: { position: p }, bubbles: true, composed: true })); }
   _closeAll() { this.shadowRoot.querySelectorAll('.pop').forEach((p) => (p.hidden = true)); }
 
+  _live(n) {
+    const h = this._h, id = h && pidOf(n, h);
+    if (!id || !h.states[id]) return '<p style="grid-column:1/-1">Wähle einen Sensor, dann siehst du hier, in welche Richtung die Energie gerade fließt.</p>';
+    const st = h.states[id], w = nodeW({ ...n, flow: 'both' }, h), a = Math.round(Math.abs(w)).toLocaleString('de') + ' W';
+    return `<p class="live" style="grid-column:1/-1">Sensor zeigt ${esc(st.state + ' ' + (st.attributes.unit_of_measurement || ''))} → ${Math.abs(w) < 1 ? 'kein Fluss' : w > 0 ? a + ' fließen zur Kachel (z. B. Akku lädt, Einspeisung)' : a + ' fließen ins Haus (z. B. Akku entlädt, Bezug)'}</p>`;
+  }
   _calcUi(n) {
     if (n.bottom || !this._h) return '';
     const nodes = (this._c.nodes || []).filter((x) => POS[x.position] && x.enabled !== false), c = calcHouse(nodes, this._h), rest = n.calc === 'rest';
@@ -289,7 +296,9 @@ class HausflussEditor extends HTMLElement {
     const rows = c.parts.map((x) => `<li><span>${nm(x.n)}</span><em>${x.v >= 0 ? '+' : '−'}${w(x.v)}</em></li>`).join('') || '<li><span>keine Quelle gefunden</span><em>–</em></li>';
     const cons = rest ? c.cons.map((x) => `<li><span>${nm(x.n)} (Verbraucher)</span><em>−${w(x.v)}</em></li>`).join('') : '';
     const warn = !c.parts.length ? 'Keine Quelle gefunden. Lege Kacheln für Solar, Netz und Akku an und wähle bei Netz und Akku die Flussart „Beides“.' : !c.bidir ? 'Keine Kachel mit Flussart „Beides“ (Netz, Akku) gefunden. Ohne Netzbezug, Einspeisung und Akku kann der Wert falsch sein.' : '';
-    return `<label>Berechnung<select data-calc><option value="total"${rest ? '' : ' selected'}>Gesamtverbrauch</option><option value="rest"${rest ? ' selected' : ''}>Restverbrauch (ohne Verbraucher-Kacheln)</option></select></label><div class="calc" style="grid-column:1/-1"><b>So wird der Hausverbrauch berechnet (Momentaufnahme)</b><ul>${rows}${cons}</ul><div class="sum"><span>${rest ? 'Restverbrauch' : 'Gesamtverbrauch'}</span><em>${w(rest ? c.rest : c.total)}</em></div>${warn ? `<p class="warn">${warn}</p>` : ''}<p>Zufluss: Solar, Netzbezug, Akku entladen. Abzug: Einspeisung, Akku laden. Kacheln mit Flussart „Verbraucht“ gehören zum Haus und werden nur beim Restverbrauch abgezogen.</p></div>`;
+    const sus = nodes.filter((x) => flowOf(x) === 'consume' && /akku|batter|speicher|netz|grid/i.test(x.name || '')).map((x) => `„${esc(x.name)}“`);
+    const susW = sus.length ? `${sus.join(', ')} hat die Flussart „Verbraucht“. Für Akku und Netz bitte „Beides“ wählen, sonst fehlt der Wert in der Berechnung.` : '';
+    return `<label>Berechnung<select data-calc><option value="total"${rest ? '' : ' selected'}>Gesamtverbrauch</option><option value="rest"${rest ? ' selected' : ''}>Restverbrauch (ohne Verbraucher-Kacheln)</option></select></label><div class="calc" style="grid-column:1/-1"><b>So wird der Hausverbrauch berechnet (Momentaufnahme)</b><ul>${rows}${cons}</ul><div class="sum"><span>${rest ? 'Restverbrauch' : 'Gesamtverbrauch'}</span><em>${w(rest ? c.rest : c.total)}</em></div>${[warn, susW].filter(Boolean).map((t) => `<p class="warn">${t}</p>`).join('')}<p>Zufluss: Solar, Netzbezug, Akku entladen. Abzug: Einspeisung, Akku laden. Kacheln mit Flussart „Verbraucht“ gehören zum Haus und werden nur beim Restverbrauch abgezogen.</p></div>`;
   }
   _auto(n, side, hub) {
     const id = n[side]; if (!id) return hub && side === 'bottom' ? (n.calc === 'rest' ? 'Restverbrauch' : 'Hausverbrauch') : '';
@@ -365,12 +374,12 @@ class HausflussEditor extends HTMLElement {
     const hints = {
       consume: 'Die Punkte laufen vom Haus zur Kachel, sobald der Sensor Leistung zeigt.',
       supply: 'Die Punkte laufen von der Kachel ins Haus, sobald der Sensor Leistung zeigt.',
-      both: 'Ein Sensor für beide Richtungen, z. B. Netz oder Akku: positiver Wert = zur Kachel, negativer Wert = ins Haus. Liefert dein Sensor es umgekehrt, setze „Vorzeichen umkehren“.',
+      both: 'Ein Sensor für beide Richtungen, z. B. Netz oder Akku. Wähle, was ein positiver Wert bedeutet. Beispiel Akku mit Minus = laden und Plus = entladen: „Plus = Lieferung / Entladen“.',
       split: 'Zwei Sensoren, z. B. Netz (Einspeisung / Bezug) oder Akku (Laden / Entladen). Der größere Wert bestimmt die Richtung.',
     };
     let f;
     if (fl === 'split') f = this._fld('entity', 'power_to_node', 'Sensor zur Kachel (z. B. Einspeisung, Laden)', n.power_to_node) + this._fld('entity', 'power_to_house', 'Sensor ins Haus (z. B. Bezug, Entladen)', n.power_to_house);
-    else if (fl === 'both') f = this._fld('entity', 'power', 'Sensor (positiv = zur Kachel)', n.power) + `<label class="row"><input type="checkbox" data-inv${n.invert ? ' checked' : ''}>Vorzeichen umkehren (positiv = ins Haus)</label>`;
+    else if (fl === 'both') f = this._fld('entity', 'power', 'Sensor', n.power) + `<label>Vorzeichen des Sensors<select data-sign><option value=""${n.invert ? '' : ' selected'}>Plus = Verbrauch / Laden (zur Kachel)</option><option value="1"${n.invert ? ' selected' : ''}>Plus = Lieferung / Entladen (ins Haus)</option></select></label>${this._live(n)}`;
     else f = this._fld('entity', 'power', 'Fluss-Leistung (optional, sonst „Unten“)', n.power);
     return `<label>Flussart<select data-fl>${o('consume', 'Verbraucht (Energie fließt zur Kachel)')}${o('supply', 'Liefert (Energie fließt ins Haus)')}${o('both', 'Beides – ein Sensor mit Vorzeichen')}${o('split', 'Beides – zwei Sensoren')}</select></label>${f}<p style="grid-column:1/-1">${hints[fl]}</p>`;
   }
@@ -410,15 +419,23 @@ ${hub ? this._calcUi(n) + [0, 1, 2].map((i) => this._fld('entity', 'chip' + i, '
     if (cs) cs.onchange = () => { this._set('hub', { calc: cs.value === 'rest' ? 'rest' : '' }); this._draw(); };
     const fs = r.querySelector('[data-fl]');
     if (fs) fs.onchange = () => { const v = fs.value; this._set(p, { flow: v, direction: '', ...(v !== 'split' ? { power_to_node: '', power_to_house: '' } : {}), ...(v !== 'both' ? { invert: '' } : {}) }); this._draw(); };
-    const iv = r.querySelector('[data-inv]');
-    if (iv) iv.onchange = () => { this._set(p, { invert: iv.checked ? true : '' }); this._yaml(); };
+    const sg = r.querySelector('[data-sign]');
+    if (sg) sg.onchange = () => { this._set(p, { invert: sg.value === '1' ? true : '' }); this._draw(); };
     r.querySelectorAll('[data-c]').forEach((b) => (b.onclick = () => { this._set(p, { color: b.dataset.c }); this._draw(); }));
   }
 }
 
+const NOTICE_URL = 'https://github.com/Maddog3010/ha-fenster-heizung', NOTICE_KEY = 'hausfluss_notice_strom_waerme';
 const DEFAULT_CFG = { title: 'Modul 3 – Energiefluss', hub: { name: 'Haus' }, nodes: [] };
 const PCSS = `
 :host{display:block;min-height:100%;background:#0e1626;color:#e8eef8;font-family:var(--paper-font-body1_-_font-family,system-ui,sans-serif)}
+.notice{display:flex;align-items:center;gap:12px;padding:10px 14px;background:linear-gradient(90deg,#92400e,#b45309 55%,#d97706);color:#fff7ed;font-size:13px;line-height:1.4;border-bottom:1px solid #f59e0b88;position:sticky;top:0;z-index:5}
+.notice[hidden]{display:none}.notice a{color:#fff;font-weight:700;text-decoration:underline}.nt{flex:1;min-width:0}
+.nx{background:none;border:0;color:inherit;font-size:16px;line-height:1;cursor:pointer;padding:6px 8px;border-radius:8px}.nx:hover{background:#ffffff22}
+.nx:focus-visible,.notice a:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wm{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:4;overflow:hidden;user-select:none}
+.wm span{transform:rotate(-24deg);text-align:center;font-weight:800;font-size:clamp(30px,min(11vw,11vh),110px);line-height:1.02;letter-spacing:.05em;color:rgba(245,158,11,.14);border:.05em solid rgba(245,158,11,.14);border-radius:.12em;padding:.08em .3em}
+.wm small{display:block;margin-top:.25em;font-size:.26em;letter-spacing:.02em;font-weight:700}
 .bar{display:flex;align-items:center;gap:12px;padding:14px;max-width:780px;margin:0 auto;box-sizing:border-box}
 ha-menu-button{color:#e8eef8}
 .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#2dd4bf,#0f766e);display:grid;place-items:center;font-size:20px;flex:none}
@@ -449,7 +466,11 @@ class HausflussPanel extends HTMLElement {
 
   _draw() {
     const admin = !!this._h.user?.is_admin, r = this.shadowRoot;
-    r.innerHTML = `<style>${PCSS}</style><div class="bar"><ha-menu-button></ha-menu-button><div class="logo">⚡</div><div class="tt"><h1></h1><p>Hausfluss · Version ${VERSION}</p></div><span class="msg" id="m"></span>${admin ? '<button class="pill" id="b">Anpassen</button>' : ''}</div><div class="main"><div class="hint" id="hint" hidden>Noch keine Kachel angelegt. Tippe oben auf „Anpassen“, setze bei einer Kachel den Haken und wähle ihre Entitäten.</div><div id="cw"></div><div id="ed" hidden></div></div>`;
+    r.innerHTML = `<style>${PCSS}</style><div class="notice" id="nt" role="status"><span aria-hidden="true">ℹ️</span><span class="nt">Die Entwicklung von Hausfluss wurde mit Version 0.0.9.2 eingestellt. Das Projekt ist jetzt in <a href="${NOTICE_URL}" target="_blank" rel="noopener noreferrer">„Strom &amp; Wärme“</a> integriert.</span><button class="nx" id="ntx" aria-label="Hinweis schließen">✕</button></div><div class="wm" aria-hidden="true"><span>ENTWICKLUNG<br>EINGESTELLT<small>Weiter in „Strom &amp; Wärme“</small></span></div><div class="bar"><ha-menu-button></ha-menu-button><div class="logo">⚡</div><div class="tt"><h1></h1><p>Hausfluss · Version ${VERSION}</p></div><span class="msg" id="m"></span>${admin ? '<button class="pill" id="b">Anpassen</button>' : ''}</div><div class="main"><div class="hint" id="hint" hidden>Noch keine Kachel angelegt. Tippe oben auf „Anpassen“, setze bei einer Kachel den Haken und wähle ihre Entitäten.</div><div id="cw"></div><div id="ed" hidden></div></div>`;
+    const nt = r.getElementById('nt'); let gone = false;
+    try { gone = localStorage.getItem(NOTICE_KEY) === '1'; } catch (e) { /* ohne Speicher: Hinweis bleibt sichtbar */ }
+    nt.hidden = gone;
+    r.getElementById('ntx').onclick = () => { nt.hidden = true; try { localStorage.setItem(NOTICE_KEY, '1'); } catch (e) { /* egal */ } };
     this._menu = r.querySelector('ha-menu-button'); this._menu.hass = this._h; this._menu.narrow = this._narrow;
     this._card = document.createElement('hausfluss-card'); r.getElementById('cw').appendChild(this._card);
     this._apply();
